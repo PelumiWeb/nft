@@ -1,9 +1,17 @@
 import React from 'react'
 import Image from "next/image"
 import { useAddress, useDisconnect, useMetamask } from "@thirdweb-dev/react";
+import { GetServerSideProps } from 'next';
+import { sanityClient, urlFor } from '../../sanity';
+import { Collection } from '../../typing';
+import Link from 'next/link';
+
+interface Props {
+    collection: Collection
+}
 
 
-function Drop() {
+function Drop({collection}: Props) {
     const connectWithMetamask = useMetamask();
     const address = useAddress();
 
@@ -19,13 +27,13 @@ function Drop() {
                 <div className="bg-gradient-to-br from-cyan-400 to-rose-500 p-2 rounded-xl"> 
                 <img
                 className='w-44 rounded-xl object-cover lg:h-96 lg:w-72'
-                src="https://links.papareact.com/8sg" 
+                src={urlFor(collection.previewImage).url()}  
                 />
                 </div>
                 
                 <div className="space-y-2 p-5 text-center"> 
-                    <h1 className="text-4xl text-white font-bold">PAPAFAM Apes</h1>
-                    <h2 className="text-xl text-gray-300">A collection of PAPAFAM Apes who live & breathe React</h2>
+                    <h1 className="text-4xl text-white font-bold">{collection.title}</h1>
+                    <h2 className="text-xl text-gray-300">{collection.description}</h2>
                 </div>
             </div>
         </div>
@@ -34,10 +42,13 @@ function Drop() {
 <div className="flex flex-1 flex-col col-span-6 p-5"> 
     {/* Header */}
     <header className="flex items-center justify-between"> 
+    <Link href="/"> 
         <h1 className="cursor-pointer w-52 text-xl font-extralight sm:w-80">The{" "} 
         <span className="font-extrabold underline decoration-pink-600/50">PAPAFAM</span>
             {" "}NFT Market Place
             </h1>
+    </Link>
+
         <button className="rounded-full bg-rose-400 text-white px-4 py-2 border-none text-xs lg:px-5 lg:py-3" onClick={() => address ? disconnect() : connectWithMetamask()}>{address ? "Sign Up" : "Sign In"}</button>
     </header>
 
@@ -46,7 +57,7 @@ function Drop() {
 
     {/* content */}
     <div className="flex flex-1 flex-col mt-10 items-center space-y-6 text-center lg:space-y-0 lg:justify-center"> 
-        <img className="w-80 object-cover pb-10 lg:h-40" src="https://links.papareact.com/bdy" alt="" />
+        <img className="w-80 object-cover pb-10 lg:h-40" src={urlFor(collection.mainImage).url()} alt="" />
 
         <h1 className="text-3xl font-bold lg-text-5xl lg-font-extrabold">The PAPFAM Ape Coding Club | NFT Drop</h1>
 
@@ -64,3 +75,51 @@ function Drop() {
 }
 
 export default Drop
+
+export const getServerSideProps: GetServerSideProps = async ({params}) => {
+    console.log(params)
+
+    const query = `
+  *[_type == "collection" && slug.current == $id][0]{
+    _id,
+    title,
+    address,
+    description,
+    nftCollectionName,
+    mainImage {
+    asset
+    },
+    previewImage {
+    asset
+    },
+    slug {
+    current
+    },
+     creator-> {
+       _id,
+       name,
+       address,
+       slug {
+       current
+     }
+     }
+  }
+  `
+
+  const collection = await sanityClient.fetch(query, {
+      id: params?.id
+  })
+  console.log(collection)
+
+  if (!collection) {
+      return {
+          notFound: true
+      }
+  } 
+      return {
+          props: {
+              collection
+          }
+      }
+
+}
